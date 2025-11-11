@@ -24,10 +24,8 @@ let bleachStartTime = null;
 const el = (id) => document.getElementById(id);
 const wavelength = el('wavelength');
 const concentration = el('concentration');
-const pathLength = el('pathLength');
 const wavelengthOut = el('wavelengthOut');
 const concentrationOut = el('concentrationOut');
-const pathLengthOut = el('pathLengthOut');
 const absorbanceOut = el('absorbanceOut');
 const transmittanceOut = el('transmittanceOut');
 const detectorOut = el('detectorOut');
@@ -176,7 +174,7 @@ function linearRegression(points) {
 
 function updateSpectrum() {
   if (!spectrumChart) return; // not initialized yet
-  const l_cm = parseFloat(pathLength.value);
+  const l_cm = 1; // fixed path length (cm)
   const c_mM = parseFloat(concentration.value);
   const labels = [];
   const epsilonData = [];
@@ -258,7 +256,7 @@ function updateVisualization(A, T) {
 function updateAll() {
   const lam = parseFloat(wavelength.value);
   const c_mM = parseFloat(concentration.value);
-  const l_cm = parseFloat(pathLength.value);
+  const l_cm = 1; // fixed path length (cm)
 
   const trueA = absorbance(lam, c_mM, l_cm);
   const noisyA = noiseToggle.checked ? trueA + randn() * NOISE_STD_A : trueA;
@@ -268,7 +266,6 @@ function updateAll() {
 
   wavelengthOut.textContent = `${Math.round(lam)}`;
   concentrationOut.textContent = fmt(c_mM, 2);
-  pathLengthOut.textContent = fmt(l_cm, 2);
   absorbanceOut.textContent = fmt(A, 3);
   transmittanceOut.textContent = `${fmt(T*100,1)}%`;
   detectorOut.textContent = fmt(signal, 3);
@@ -286,14 +283,14 @@ function randn() { // Box-Muller
 
 // --- Event wiring ---
 function attachEvents() {
-  [wavelength, concentration, pathLength, noiseToggle].forEach(inp => {
+  [wavelength, concentration, noiseToggle].forEach(inp => {
     inp.addEventListener('input', updateAll);
   });
 
   resetAll.addEventListener('click', () => {
     wavelength.value = 538;
     concentration.value = 0.5;
-    pathLength.value = 1.0;
+  // path length fixed at 1 cm
     noiseToggle.checked = true;
     calibrationData = [];
     updateCalibrationPlot();
@@ -306,7 +303,7 @@ function attachEvents() {
   measureBtn.addEventListener('click', () => {
     const lam = parseFloat(wavelength.value);
     const c_mM = parseFloat(concentration.value);
-    const l_cm = parseFloat(pathLength.value);
+  const l_cm = 1; // fixed path length (cm)
     let A = absorbance(lam, c_mM, l_cm);
     if (noiseToggle.checked) A += randn() * NOISE_STD_A;
     A = Math.max(0, A);
