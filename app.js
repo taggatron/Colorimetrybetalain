@@ -32,6 +32,7 @@ const detectorOut = el('detectorOut');
 const noiseToggle = el('noiseToggle');
 const measureBtn = el('measureBtn');
 const clearCalibration = el('clearCalibration');
+const autoCalibrateBtn = el('autoCalibrateBtn');
 const resetAll = el('resetAll');
 const downloadData = el('downloadData');
 const bleachToggle = el('bleachToggle');
@@ -79,6 +80,8 @@ let calibrationData = []; // {c_mM, A}
 let timeSeries = [];      // {t_min, c_mM}
 let spectrumInitialized = false;
 let timeChartInitialized = false;
+let autoRunning = false;
+let autoTimer = null;
 
 function initCharts() {
   const labelColor = '#37474f';
@@ -316,6 +319,15 @@ function attachEvents() {
     updateCalibrationPlot();
   });
 
+  // Auto calibration
+  autoCalibrateBtn.addEventListener('click', () => {
+    if (autoRunning) {
+      stopAutoCalibration();
+    } else {
+      startAutoCalibration();
+    }
+  });
+
   downloadData.addEventListener('click', () => {
     const rows = [['concentration_mM','absorbance_A'], ...calibrationData.map(d => [d.c_mM, d.A])];
     const csv = rows.map(r => r.join(',')).join('\n');
@@ -424,6 +436,61 @@ function stopBleaching() {
   bleachToggle.textContent = 'Start bleaching';
   clearInterval(bleachTimer);
   bleachTimer = null;
+}
+
+// --- Auto calibration sequence ---
+function startAutoCalibration() {
+  if (autoRunning) return;
+  autoRunning = true;
+  autoCalibrateBtn.textContent = '⏹ Stop auto';
+  autoCalibrateBtn.setAttribute('aria-pressed', 'true');
+  // Disable conflicting actions
+  measureBtn.disabled = true;
+  clearCalibration.disabled = true;
+  wavelength.disabled = true;
+
+  // Build concentrations from 0 to slider max (or 1.0 mM if larger), 11 steps
+  const cMax = Math.min(1.0, parseFloat(concentration.max || '1'));
+  const steps = 11;
+  const targets = Array.from({ length: steps }, (_, i) => +(cMax * i / (steps - 1)).toFixed(3));
+
+  // Start with a fresh calibration
+  calibrationData = [];
+  updateCalibrationPlot();
+
+  const originalC = parseFloat(concentration.value);
+  const lam = parseFloat(wavelength.value);
+  let idx = 0;
+  autoTimer = setInterval(() => {
+    if (idx >= targets.length) {
+      stopAutoCalibration(originalC);
+      return;
+    }
+    const c_mM = targets[idx++];
+    concentration.value = String(c_mM);
+    updateAll(); // animate instrument view with new T
+    const Atrue = absorbance(lam, c_mM, 1);
+    const A = Math.max(0, noiseToggle.checked ? Atrue + randn()*NOISE_STD_A : Atrue);
+    calibrationData.push({ c_mM, A });
+    updateCalibrationPlot();
+  }, 300);
+}
+
+function stopAutoCalibration(restoreC = null) {
+  if (!autoRunning) return;
+  autoRunning = false;
+  clearInterval(autoTimer);
+  autoTimer = null;
+  autoCalibrateBtn.textContent = '📈 Auto calibrate';
+  autoCalibrateBtn.setAttribute('aria-pressed', 'false');
+  // Re-enable controls
+  measureBtn.disabled = false;
+  clearCalibration.disabled = false;
+  wavelength.disabled = false;
+  if (restoreC != null) {
+    concentration.value = String(restoreC);
+    updateAll();
+  }
 }
 
 // --- Boot ---
