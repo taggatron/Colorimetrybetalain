@@ -46,6 +46,7 @@
       <div class="buttons">
         <button id="measureBtn">Measure (add to calibration)</button>
         <button id="autoCalibrateBtn" class="ghost" aria-pressed="false" title="Auto-generate calibration points">📈 Auto calibrate</button>
+        <button id="unknownBtn" class="ghost" title="Add and read an unknown sample">❓ Unknown sample</button>
         <button id="clearCalibration" class="ghost">Clear calibration</button>
       </div>
 
@@ -156,6 +157,22 @@
           </div>
           <canvas id="calibrationChart" height="160"></canvas>
           <div class="calib-stats"><span id="calibStats">m = —, b = —, R² = —</span></div>
+          <div id="unknownOverlay" class="unknown-overlay is-hidden" aria-hidden="true">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+              <!-- Horizontal arrow from A* to fit line -->
+              <defs>
+                <marker id="arrowHead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                  <polygon points="0 0, 6 3, 0 6" fill="#455a64" />
+                </marker>
+              </defs>
+              <line id="arrowH" x1="10" y1="50" x2="60" y2="50" stroke="#455a64" stroke-width="1.5" marker-end="url(#arrowHead)" />
+              <!-- Vertical arrow down to x-axis -->
+              <line id="arrowV" x1="60" y1="15" x2="60" y2="85" stroke="#455a64" stroke-width="1.5" marker-end="url(#arrowHead)" />
+              <!-- Labels -->
+              <text id="unknownALabel" x="8" y="48" fill="#455a64" font-size="6">A*</text>
+              <text id="unknownCLabel" x="62" y="92" fill="#455a64" font-size="6">ĉ</text>
+            </svg>
+          </div>
         </div>
       </div>
     </section>

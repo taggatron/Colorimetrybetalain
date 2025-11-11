@@ -33,6 +33,7 @@ const noiseToggle = el('noiseToggle');
 const measureBtn = el('measureBtn');
 const clearCalibration = el('clearCalibration');
 const autoCalibrateBtn = el('autoCalibrateBtn');
+const unknownBtn = el('unknownBtn');
 const resetAll = el('resetAll');
 const downloadData = el('downloadData');
 const bleachToggle = el('bleachToggle');
@@ -42,6 +43,7 @@ const bleachRateOut = el('bleachRateOut');
 const calibStats = el('calibStats');
 const advancedToggle = el('advancedToggle');
 const advancedPanel = el('advancedPanel');
+const unknownOverlay = el('unknownOverlay');
 
 // Visualization elements
 const instrumentSVG = el('instrumentSVG');
@@ -370,6 +372,58 @@ function attachEvents() {
     } else {
       startAutoCalibration();
     }
+  });
+
+  // Unknown sample: generate a random concentration, add its A at current λ,
+  // estimate ĉ from the current fit, and animate overlay arrows.
+  unknownBtn.addEventListener('click', () => {
+    // If insufficient points, quickly seed two points using current λ
+    if (calibrationData.length < 2) {
+      const lam = parseFloat(wavelength.value);
+      const seeds = [0.0, Math.min(0.6, parseFloat(concentration.max||'1')/2)];
+      for (const c_mM of seeds) {
+        const Atrue = absorbance(lam, c_mM, 1);
+        const A = Math.max(0, noiseToggle.checked ? Atrue + randn()*NOISE_STD_A : Atrue);
+        calibrationData.push({ c_mM, A });
+      }
+      updateCalibrationPlot();
+    }
+
+    const lam = parseFloat(wavelength.value);
+    // Random unknown concentration within slider range
+    const cMax = Math.min(1.0, parseFloat(concentration.max || '1'));
+    const cUnknown = +(Math.random() * cMax).toFixed(3);
+    const Atrue = absorbance(lam, cUnknown, 1);
+    const A_meas = Math.max(0, noiseToggle.checked ? Atrue + randn()*NOISE_STD_A : Atrue);
+
+    // Add to dataset as a special point (but don’t keep it permanently to avoid skewing fit)
+    // Show the measurement flash and temporary point
+    flashMeasurementCue();
+    const tempPoint = { c_mM: cUnknown, A: A_meas, _temp: true };
+    calibrationData.push(tempPoint);
+    updateCalibrationPlot();
+
+    // Compute current fit parameters
+    const fit = linearRegression(calibrationData.filter(p => !p._temp).map(d => ({ x: d.c_mM, y: d.A })));
+    const m = fit.m, b = fit.b;
+    const c_est = m !== 0 ? (A_meas - b) / m : 0;
+
+    // Animate overlay arrows over the chart area
+    if (unknownOverlay) {
+      unknownOverlay.classList.remove('is-hidden');
+      unknownOverlay.classList.add('unknown-animate');
+      // Remove animation class after it finishes so it can be replayed next time
+      setTimeout(() => unknownOverlay.classList.remove('unknown-animate'), 2500);
+      // Hide overlay after a short while
+      setTimeout(() => unknownOverlay.classList.add('is-hidden'), 3000);
+    }
+
+    // Remove temp point after a bit so it doesn’t affect future fits
+    setTimeout(() => {
+      const idx = calibrationData.indexOf(tempPoint);
+      if (idx >= 0) calibrationData.splice(idx, 1);
+      updateCalibrationPlot();
+    }, 1200);
   });
 
   downloadData.addEventListener('click', () => {

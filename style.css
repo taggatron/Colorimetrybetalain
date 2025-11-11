@@ -71,6 +71,15 @@ svg { width: 100%; height: auto; }
 .chart-head .sub { font-size: .6rem; color: #555; }
 .calib-stats { font-size: .6rem; margin-top: .35rem; color: #333; }
 
+/* Unknown sample overlay on calibration chart */
+.unknown-overlay { position: absolute; inset: 0.5rem 0.9rem 1.1rem 0.9rem; pointer-events: none; }
+.chart { position: relative; }
+.unknown-overlay svg { width: 100%; height: 100%; display: block; }
+.unknown-animate #arrowH { animation: arrowAcross 1.2s ease-out forwards; }
+.unknown-animate #arrowV { animation: arrowDown 1.0s .9s ease-out forwards; }
+@keyframes arrowAcross { from { transform: translateX(-35%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes arrowDown { from { transform: translateY(-35%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
 .about { margin: 1rem; }
 .about p { font-size: .75rem; }
 
