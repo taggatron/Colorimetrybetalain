@@ -49,6 +49,7 @@ const beam = el('beam');
 const photonsGroup = el('photons');
 const solution = el('solution');
 const detector = el('detector');
+const led = el('led');
 
 // --- Helpers ---
 function gaussian(x, mu, sigma) {
@@ -284,6 +285,22 @@ function randn() { // Box-Muller
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
+// Brief flash of LED and detector on measurement
+function flashMeasurementCue() {
+  if (led) {
+    led.classList.remove('led-flash');
+    void led.offsetWidth; // reflow to restart animation
+    led.classList.add('led-flash');
+    setTimeout(() => led.classList.remove('led-flash'), 500);
+  }
+  if (detector) {
+    detector.classList.remove('detector-flash');
+    void detector.offsetWidth;
+    detector.classList.add('detector-flash');
+    setTimeout(() => detector.classList.remove('detector-flash'), 600);
+  }
+}
+
 // --- Event wiring ---
 function attachEvents() {
   [wavelength, concentration, noiseToggle].forEach(inp => {
@@ -312,6 +329,7 @@ function attachEvents() {
     A = Math.max(0, A);
     calibrationData.push({ c_mM, A });
     updateCalibrationPlot();
+    flashMeasurementCue();
   });
 
   clearCalibration.addEventListener('click', () => {
@@ -473,6 +491,7 @@ function startAutoCalibration() {
     const A = Math.max(0, noiseToggle.checked ? Atrue + randn()*NOISE_STD_A : Atrue);
     calibrationData.push({ c_mM, A });
     updateCalibrationPlot();
+    flashMeasurementCue();
   }, 300);
 }
 
