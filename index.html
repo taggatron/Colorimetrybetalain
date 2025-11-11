@@ -55,17 +55,39 @@
       </div>
 
       <div id="advancedPanel" class="advanced is-hidden">
-        <h3>Bleaching simulation</h3>
-        <p class="hint">Optional: simulate photodegradation of betalain under light.</p>
-        <div class="control">
-          <label for="bleachRate">Bleach rate k (1/min)
-            <output id="bleachRateOut">0.020</output>
-          </label>
-          <input type="range" id="bleachRate" min="0" max="0.1" value="0.02" step="0.001" />
-        </div>
-        <div class="buttons">
-          <button id="bleachToggle">Start bleaching</button>
-          <button id="bleachReset" class="ghost">Reset concentration</button>
+        <div class="advanced-group">
+          <button id="toggleSpectrum" class="adv-sub-toggle ghost" aria-expanded="false" aria-controls="spectrumPanel">Spectrum ▸</button>
+          <div id="spectrumPanel" class="adv-sub-panel is-hidden">
+            <div class="chart">
+              <div class="chart-head">
+                <h3>Spectrum</h3>
+                <span class="sub">ε(λ) and A(λ) for current settings</span>
+              </div>
+              <canvas id="spectrumChart" height="160"></canvas>
+            </div>
+          </div>
+          <button id="toggleBleaching" class="adv-sub-toggle ghost" aria-expanded="false" aria-controls="bleachingPanel">Bleaching ▸</button>
+          <div id="bleachingPanel" class="adv-sub-panel is-hidden">
+            <h3>Bleaching simulation</h3>
+            <p class="hint">Optional: simulate photodegradation of betalain under light.</p>
+            <div class="control">
+              <label for="bleachRate">Bleach rate k (1/min)
+                <output id="bleachRateOut">0.020</output>
+              </label>
+              <input type="range" id="bleachRate" min="0" max="0.1" value="0.02" step="0.001" />
+            </div>
+            <div class="buttons">
+              <button id="bleachToggle">Start bleaching</button>
+              <button id="bleachReset" class="ghost">Reset concentration</button>
+            </div>
+            <div class="chart">
+              <div class="chart-head">
+                <h3>Bleaching over time</h3>
+                <span class="sub">Concentration decay under light</span>
+              </div>
+              <canvas id="timeChart" height="160"></canvas>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -134,25 +156,11 @@
       <div class="charts">
         <div class="chart">
           <div class="chart-head">
-            <h3>Spectrum</h3>
-            <span class="sub">ε(λ) and A(λ) for current settings</span>
-          </div>
-          <canvas id="spectrumChart" height="160"></canvas>
-        </div>
-        <div class="chart">
-          <div class="chart-head">
             <h3>Calibration (Beer–Lambert)</h3>
             <span class="sub">Absorbance vs concentration at selected λ</span>
           </div>
           <canvas id="calibrationChart" height="160"></canvas>
           <div class="calib-stats"><span id="calibStats">m = —, b = —, R² = —</span></div>
-        </div>
-        <div class="chart">
-          <div class="chart-head">
-            <h3>Bleaching over time</h3>
-            <span class="sub">Concentration decay under light</span>
-          </div>
-          <canvas id="timeChart" height="160"></canvas>
         </div>
       </div>
     </section>

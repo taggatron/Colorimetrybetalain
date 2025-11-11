@@ -77,3 +77,6 @@ button:focus-visible, input:focus-visible { outline: 2px solid #7e57c2; outline-
 /* Advanced panel toggle */
 .is-hidden { display: none !important; }
 .advanced { margin-top: .75rem; padding-top: .5rem; border-top: 1px dashed #c7c7c7; }
+.advanced-group { display: flex; flex-direction: column; gap: .5rem; }
+.adv-sub-toggle { align-self: start; }
+.adv-sub-panel { padding: .5rem .25rem .25rem; }

@@ -79,30 +79,12 @@ function fmt(num, digits=3) { return Number.parseFloat(num).toFixed(digits); }
 let spectrumChart, calibrationChart, timeChart;
 let calibrationData = []; // {c_mM, A}
 let timeSeries = [];      // {t_min, c_mM}
+let spectrumInitialized = false;
+let timeChartInitialized = false;
 
 function initCharts() {
   const labelColor = '#37474f';
   const gridColor = 'rgba(0,0,0,0.06)';
-
-  // Spectrum
-  const specCtx = document.getElementById('spectrumChart');
-  spectrumChart = new Chart(specCtx, {
-    type: 'line',
-    data: { datasets: [
-      { label: 'ε(λ) [L/(mol·cm)]', data: [], yAxisID: 'y1', borderColor: '#7e57c2', tension: .2, pointRadius: 0 },
-      { label: 'A(λ)', data: [], yAxisID: 'y', borderColor: '#ef5350', tension: .2, pointRadius: 0 }
-    ]},
-    options: {
-      responsive: true,
-      animation: { duration: 300 },
-      plugins: { legend: { labels: { color: labelColor } } },
-      scales: {
-        x: { title: { text: 'Wavelength (nm)', display: true, color: labelColor }, min: 380, max: 700, grid: { color: gridColor }, ticks: { color: labelColor } },
-        y: { title: { text: 'Absorbance A', display: true, color: labelColor }, grid: { color: gridColor }, ticks: { color: labelColor }, suggestedMin: 0 },
-        y1: { position: 'right', title: { text: 'ε', display: true, color: labelColor }, grid: { drawOnChartArea: false }, ticks: { color: labelColor }, suggestedMin: 0 }
-      }
-    }
-  });
 
   // Calibration
   const calibCtx = document.getElementById('calibrationChart');
@@ -123,23 +105,56 @@ function initCharts() {
     }
   });
 
-  // Time
-  const timeCtx = document.getElementById('timeChart');
-  timeChart = new Chart(timeCtx, {
-    type: 'line',
-    data: { datasets: [
-      { label: 'c(t) [mM]', data: [], borderColor: '#00897b', backgroundColor: 'rgba(0,137,123,.15)', tension: .2, pointRadius: 0 }
-    ]},
-    options: {
-      responsive: true,
-      animation: { duration: 0 },
-      plugins: { legend: { labels: { color: labelColor } } },
-      scales: {
-        x: { title: { text: 'Time (min)', display: true, color: labelColor }, grid: { color: gridColor }, ticks: { color: labelColor } },
-        y: { title: { text: 'Concentration (mM)', display: true, color: labelColor }, grid: { color: gridColor }, ticks: { color: labelColor }, suggestedMin: 0 }
+  // Spectrum and Time charts will be lazily initialized when their panels are opened
+  function ensureSpectrumChart() {
+    if (spectrumInitialized) return;
+    const specCtx = document.getElementById('spectrumChart');
+    spectrumChart = new Chart(specCtx, {
+      type: 'line',
+      data: { datasets: [
+        { label: 'ε(λ) [L/(mol·cm)]', data: [], yAxisID: 'y1', borderColor: '#7e57c2', tension: .2, pointRadius: 0 },
+        { label: 'A(λ)', data: [], yAxisID: 'y', borderColor: '#ef5350', tension: .2, pointRadius: 0 }
+      ]},
+      options: {
+        responsive: true,
+        animation: { duration: 300 },
+        plugins: { legend: { labels: { color: labelColor } } },
+        scales: {
+          x: { title: { text: 'Wavelength (nm)', display: true, color: labelColor }, min: 380, max: 700, grid: { color: gridColor }, ticks: { color: labelColor } },
+          y: { title: { text: 'Absorbance A', display: true, color: labelColor }, grid: { color: gridColor }, ticks: { color: labelColor }, suggestedMin: 0 },
+          y1: { position: 'right', title: { text: 'ε', display: true, color: labelColor }, grid: { drawOnChartArea: false }, ticks: { color: labelColor }, suggestedMin: 0 }
+        }
       }
-    }
-  });
+    });
+    spectrumInitialized = true;
+    updateSpectrum();
+  }
+
+  function ensureTimeChart() {
+    if (timeChartInitialized) return;
+    const timeCtx = document.getElementById('timeChart');
+    timeChart = new Chart(timeCtx, {
+      type: 'line',
+      data: { datasets: [
+        { label: 'c(t) [mM]', data: [], borderColor: '#00897b', backgroundColor: 'rgba(0,137,123,.15)', tension: .2, pointRadius: 0 }
+      ]},
+      options: {
+        responsive: true,
+        animation: { duration: 0 },
+        plugins: { legend: { labels: { color: labelColor } } },
+        scales: {
+          x: { title: { text: 'Time (min)', display: true, color: labelColor }, grid: { color: gridColor }, ticks: { color: labelColor } },
+          y: { title: { text: 'Concentration (mM)', display: true, color: labelColor }, grid: { color: gridColor }, ticks: { color: labelColor }, suggestedMin: 0 }
+        }
+      }
+    });
+    timeChartInitialized = true;
+    updateTimePlot();
+  }
+
+  // expose to other handlers
+  initCharts.ensureSpectrumChart = ensureSpectrumChart;
+  initCharts.ensureTimeChart = ensureTimeChart;
 }
 
 // Linear regression y = m x + b
@@ -160,6 +175,7 @@ function linearRegression(points) {
 }
 
 function updateSpectrum() {
+  if (!spectrumChart) return; // not initialized yet
   const l_cm = parseFloat(pathLength.value);
   const c_mM = parseFloat(concentration.value);
   const labels = [];
@@ -195,6 +211,7 @@ function updateCalibrationPlot() {
 }
 
 function updateTimePlot() {
+  if (!timeChart) return; // not initialized yet
   timeChart.data.datasets[0].data = timeSeries.map(d => ({ x: d.t_min, y: d.c_mM }));
   timeChart.update('none');
 }
@@ -340,6 +357,40 @@ function attachEvents() {
       stopBleaching();
       advancedPanel.classList.add('is-hidden');
       advancedToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  // Sub toggles: Spectrum and Bleaching
+  const toggleSpectrum = document.getElementById('toggleSpectrum');
+  const spectrumPanel = document.getElementById('spectrumPanel');
+  toggleSpectrum.addEventListener('click', () => {
+    const hidden = spectrumPanel.classList.contains('is-hidden');
+    if (hidden) {
+      spectrumPanel.classList.remove('is-hidden');
+      toggleSpectrum.setAttribute('aria-expanded', 'true');
+      initCharts.ensureSpectrumChart();
+      // Resize after panel opens
+      setTimeout(() => spectrumChart && spectrumChart.resize(), 0);
+      updateAll();
+    } else {
+      spectrumPanel.classList.add('is-hidden');
+      toggleSpectrum.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  const toggleBleaching = document.getElementById('toggleBleaching');
+  const bleachingPanel = document.getElementById('bleachingPanel');
+  toggleBleaching.addEventListener('click', () => {
+    const hidden = bleachingPanel.classList.contains('is-hidden');
+    if (hidden) {
+      bleachingPanel.classList.remove('is-hidden');
+      toggleBleaching.setAttribute('aria-expanded', 'true');
+      initCharts.ensureTimeChart();
+      setTimeout(() => timeChart && timeChart.resize(), 0);
+    } else {
+      stopBleaching();
+      bleachingPanel.classList.add('is-hidden');
+      toggleBleaching.setAttribute('aria-expanded', 'false');
     }
   });
 }
