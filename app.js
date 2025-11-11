@@ -41,6 +41,8 @@ const bleachReset = el('bleachReset');
 const bleachRate = el('bleachRate');
 const bleachRateOut = el('bleachRateOut');
 const calibStats = el('calibStats');
+const advancedToggle = el('advancedToggle');
+const advancedPanel = el('advancedPanel');
 
 // Visualization elements
 const instrumentSVG = el('instrumentSVG');
@@ -325,6 +327,20 @@ function attachEvents() {
     timeSeries = [];
     updateTimePlot();
     updateAll();
+  });
+
+  // Advanced toggle
+  advancedToggle.addEventListener('click', () => {
+    const isHidden = advancedPanel.classList.contains('is-hidden');
+    if (isHidden) {
+      advancedPanel.classList.remove('is-hidden');
+      advancedToggle.setAttribute('aria-expanded', 'true');
+    } else {
+      // Hide and stop any ongoing bleaching
+      stopBleaching();
+      advancedPanel.classList.add('is-hidden');
+      advancedToggle.setAttribute('aria-expanded', 'false');
+    }
   });
 }
 

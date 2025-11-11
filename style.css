@@ -73,3 +73,7 @@ svg { width: 100%; height: auto; }
 
 /* Accessibility focus */
 button:focus-visible, input:focus-visible { outline: 2px solid #7e57c2; outline-offset: 2px; }
+
+/* Advanced panel toggle */
+.is-hidden { display: none !important; }
+.advanced { margin-top: .75rem; padding-top: .5rem; border-top: 1px dashed #c7c7c7; }
