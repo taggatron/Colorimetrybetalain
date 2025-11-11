@@ -51,7 +51,7 @@ svg { width: 100%; height: auto; }
 .led { transform-box: fill-box; transform-origin: 50% 50%; }
 .led-flash { animation: ledPulse .5s ease-out; }
 .detector-flash { animation: detPulse .6s ease-out; }
-@keyframes ledPulse { 0% { transform: scale(1); filter: drop-shadow(0 0 2px #fff176); } 40% { transform: scale(1.6); filter: drop-shadow(0 0 10px #fff176); } 100% { transform: scale(1); filter: drop-shadow(0 0 2px #fff176); } }
+@keyframes ledPulse { 0% { transform: scale(1); filter: drop-shadow(0 0 2px #69f0ae); } 40% { transform: scale(1.6); filter: drop-shadow(0 0 10px #00e676); } 100% { transform: scale(1); filter: drop-shadow(0 0 2px #69f0ae); } }
 @keyframes detPulse { 0% { filter: drop-shadow(0 0 0px rgba(129,199,132,.0)); } 35% { filter: drop-shadow(0 0 12px rgba(129,199,132,.9)); } 100% { filter: drop-shadow(0 0 2px rgba(129,199,132,.4)); } }
 
 .charts { display: grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap: 1rem; }
@@ -61,6 +61,10 @@ svg { width: 100%; height: auto; }
   /* Increase height of the calibration chart container on wide screens */
   #calibrationChart { height: 260px !important; }
   /* Optionally enlarge spectrum/time if desired later */
+}
+@media (max-width: 640px) {
+  /* Make calibration chart a bit taller (mobile) without overwhelming vertical space */
+  #calibrationChart { height: 200px !important; }
 }
 .chart-head { display: flex; flex-direction: column; margin-bottom: .25rem; }
 .chart-head h3 { margin: 0; font-size: .85rem; font-weight: 600; letter-spacing: .5px; }
@@ -76,7 +80,7 @@ svg { width: 100%; height: auto; }
 }
 
 /* Photon animation */
-.photon { fill: #fff9c4; opacity: .9; animation: drift 3s linear infinite; }
+.photon { fill: #16e231; opacity: .9; animation: drift 3s linear infinite; }
 @keyframes drift { from { transform: translateX(0); } to { transform: translateX(520px); } }
 
 /* Detector glow based on signal */
