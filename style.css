@@ -80,8 +80,15 @@ svg { width: 100%; height: auto; }
 }
 
 /* Photon animation */
-.photon { fill: #16e231; opacity: .9; animation: drift 3s linear infinite; }
-@keyframes drift { from { transform: translateX(0); } to { transform: translateX(520px); } }
+.photon { fill: #16e231; opacity: .9; animation: driftAbsorb 3s linear infinite; }
+/* Drift left-to-right; fade after cuvette to simulate absorption.
+   SVG coordinates: beam spans x ~120 to ~640; cuvette centered at ~360..460 area. */
+@keyframes driftAbsorb {
+  0%   { transform: translateX(0); opacity: 0.95; }
+  38%  { opacity: 0.95; }    /* before cuvette */
+  42%  { opacity: var(--after-opacity, 0.2); } /* inside cuvette edge */
+  100% { transform: translateX(520px); opacity: var(--after-opacity, 0.2); }
+}
 
 /* Detector glow based on signal */
 .detector-glow { filter: drop-shadow(0 0 6px rgba(129,199,132,.7)); }

@@ -248,6 +248,10 @@ function updateVisualization(A, T) {
       c.setAttribute('cy', String(120 + (Math.random()-0.5)*24));
       c.setAttribute('r', String(1.5 + Math.random()*2.5));
       c.style.animationDuration = `${2.2 + Math.random()*1.8}s`;
+      // Set post-cuvette opacity: more absorption (lower T) -> lower opacity
+      const baseAfter = 0.15 + 0.75 * T; // 0.15..0.9 depending on T
+      const jitter = (Math.random()-0.5) * 0.15; // add variety
+      c.style.setProperty('--after-opacity', String(clamp(baseAfter + jitter, 0.05, 0.95)));
       c.style.animationDelay = `${-Math.random()*3}s`;
       photonsGroup.appendChild(c);
     }
@@ -255,6 +259,14 @@ function updateVisualization(A, T) {
     for (let i = current; i > targetCount; i--) {
       photonsGroup.removeChild(photonsGroup.lastChild);
     }
+  }
+
+  // Update existing photons' post-absorption opacity as T changes
+  for (let i = 0; i < photonsGroup.childElementCount; i++) {
+    const p = photonsGroup.children[i];
+    const baseAfter = 0.15 + 0.75 * T;
+    const jitter = (Math.random()-0.5) * 0.1;
+    p.style.setProperty('--after-opacity', String(clamp(baseAfter + jitter, 0.05, 0.95)));
   }
 }
 
