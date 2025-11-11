@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Interactive Colorimeter: Betalain (Beetroot)</title>
+  <link rel="stylesheet" href="./style.css" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <h1>Colorimeter Simulator — Betalain (Beetroot)</h1>
+    <div class="header-right">
+      <button id="resetAll" class="ghost">Reset</button>
+      <a class="ghost" href="#about">About</a>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel controls">
+      <h2>Controls</h2>
+      <div class="control">
+        <label for="wavelength">Wavelength (nm)
+          <output id="wavelengthOut">538</output>
+        </label>
+        <input type="range" id="wavelength" min="380" max="700" value="538" step="1" />
+      </div>
+
+      <div class="control">
+        <label for="concentration">Concentration (mM)
+          <output id="concentrationOut">0.50</output>
+        </label>
+        <input type="range" id="concentration" min="0" max="1.5" value="0.5" step="0.01" />
+      </div>
+
+      <div class="control">
+        <label for="pathLength">Path length (cm)
+          <output id="pathLengthOut">1.00</output>
+        </label>
+        <input type="range" id="pathLength" min="0.1" max="5" value="1" step="0.01" />
+      </div>
+
+      <div class="control">
+        <label class="checkbox">
+          <input type="checkbox" id="noiseToggle" checked />
+          Include instrument noise
+        </label>
+      </div>
+
+      <div class="buttons">
+        <button id="measureBtn">Measure (add to calibration)</button>
+        <button id="clearCalibration" class="ghost">Clear calibration</button>
+      </div>
+
+      <h3>Bleaching simulation</h3>
+      <p class="hint">Optional: simulate photodegradation of betalain under light.</p>
+      <div class="control">
+        <label for="bleachRate">Bleach rate k (1/min)
+          <output id="bleachRateOut">0.020</output>
+        </label>
+        <input type="range" id="bleachRate" min="0" max="0.1" value="0.02" step="0.001" />
+      </div>
+      <div class="buttons">
+        <button id="bleachToggle">Start bleaching</button>
+        <button id="bleachReset" class="ghost">Reset concentration</button>
+      </div>
+
+      <div class="readouts">
+        <div class="readout"><span>Absorbance A:</span><strong id="absorbanceOut">0.000</strong></div>
+        <div class="readout"><span>Transmittance T:</span><strong id="transmittanceOut">100.0%</strong></div>
+        <div class="readout"><span>Detector signal:</span><strong id="detectorOut">1.000</strong></div>
+      </div>
+    </section>
+
+    <section class="panel viz">
+      <h2>Instrument view</h2>
+      <div class="colorimeter" aria-label="Colorimeter visualization">
+        <svg id="instrumentSVG" viewBox="0 0 900 240" role="img" aria-labelledby="instrumentTitle instrumentDesc">
+          <title id="instrumentTitle">Colorimeter schematic</title>
+          <desc id="instrumentDesc">Light passes through a cuvette containing betalain solution and reaches a detector.</desc>
+          <!-- Background -->
+          <defs>
+            <linearGradient id="beamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#fff59d" stop-opacity="0.9" />
+              <stop offset="100%" stop-color="#fff59d" stop-opacity="0" />
+            </linearGradient>
+            <linearGradient id="detectorGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#c8e6c9" />
+              <stop offset="100%" stop-color="#81c784" />
+            </linearGradient>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+
+          <!-- LED source -->
+          <g transform="translate(40, 90)">
+            <rect x="0" y="0" width="80" height="60" rx="8" fill="#263238" />
+            <circle cx="80" cy="30" r="10" fill="#fdd835" filter="url(#glow)" />
+            <text x="40" y="80" text-anchor="middle" class="label">LED</text>
+          </g>
+
+          <!-- Beam -->
+          <g id="beamGroup">
+            <rect id="beam" x="120" y="106" width="520" height="28" fill="url(#beamGrad)" />
+            <!-- Moving photon dots -->
+            <g id="photons"></g>
+          </g>
+
+          <!-- Cuvette with solution -->
+          <g transform="translate(360, 40)">
+            <rect x="0" y="0" width="100" height="160" rx="6" fill="#90a4ae" opacity="0.3" />
+            <rect id="solution" x="8" y="8" width="84" height="144" rx="4" fill="#7e57c2" opacity="0.8" />
+            <text x="50" y="178" text-anchor="middle" class="label">Cuvette</text>
+          </g>
+
+          <!-- Detector -->
+          <g transform="translate(720, 70)">
+            <rect x="0" y="0" width="140" height="100" rx="10" fill="#263238" />
+            <rect id="detector" x="18" y="18" width="104" height="64" rx="6" fill="url(#detectorGrad)" />
+            <text x="70" y="120" text-anchor="middle" class="label">Detector</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="charts">
+        <div class="chart">
+          <div class="chart-head">
+            <h3>Spectrum</h3>
+            <span class="sub">ε(λ) and A(λ) for current settings</span>
+          </div>
+          <canvas id="spectrumChart" height="160"></canvas>
+        </div>
+        <div class="chart">
+          <div class="chart-head">
+            <h3>Calibration (Beer–Lambert)</h3>
+            <span class="sub">Absorbance vs concentration at selected λ</span>
+          </div>
+          <canvas id="calibrationChart" height="160"></canvas>
+          <div class="calib-stats"><span id="calibStats">m = —, b = —, R² = —</span></div>
+        </div>
+        <div class="chart">
+          <div class="chart-head">
+            <h3>Bleaching over time</h3>
+            <span class="sub">Concentration decay under light</span>
+          </div>
+          <canvas id="timeChart" height="160"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section id="about" class="panel about">
+    <h2>About betalain and this simulator</h2>
+    <p>
+      Betalains are vibrant red-purple pigments found in beetroot (beta vulgaris). They absorb strongly
+      around the green region of the spectrum (~538 nm), so green light is attenuated while red-blue light is transmitted,
+      yielding the characteristic magenta color.
+    </p>
+    <p>
+      This interactive app simulates a single-beam colorimeter using the Beer–Lambert law A = ε(λ)·c·l. The extinction
+      coefficient ε(λ) is modeled with a Gaussian peak near 538 nm for betalain; values are representative, not exact.
+      Use it for intuition and teaching—not quantitative analysis.
+    </p>
+  </section>
+
+  <footer class="app-footer">
+    <span>© 2025 — Educational simulation. Betalain example inspired by beetroot pigments.</span>
+    <div class="spacer"></div>
+    <button id="downloadData" class="ghost">Download calibration CSV</button>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
