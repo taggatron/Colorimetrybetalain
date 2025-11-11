@@ -56,6 +56,12 @@ svg { width: 100%; height: auto; }
 
 .charts { display: grid; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); gap: 1rem; }
 .chart { background: #fff; padding: .75rem .9rem 1.1rem; border-radius: 10px; box-shadow: 0 2px 8px rgba(63,81,181,.08); display: flex; flex-direction: column; }
+.chart canvas { width: 100% !important; }
+@media (min-width: 1200px) {
+  /* Increase height of the calibration chart container on wide screens */
+  #calibrationChart { height: 260px !important; }
+  /* Optionally enlarge spectrum/time if desired later */
+}
 .chart-head { display: flex; flex-direction: column; margin-bottom: .25rem; }
 .chart-head h3 { margin: 0; font-size: .85rem; font-weight: 600; letter-spacing: .5px; }
 .chart-head .sub { font-size: .6rem; color: #555; }

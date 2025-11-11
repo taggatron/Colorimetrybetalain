@@ -98,6 +98,7 @@ function initCharts() {
     ]},
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       animation: { duration: 200 },
       plugins: { legend: { labels: { color: labelColor } } },
       scales: {
