@@ -85,6 +85,8 @@ let spectrumInitialized = false;
 let timeChartInitialized = false;
 let autoRunning = false;
 let autoTimer = null;
+// Persist parameters for overlay so we can reposition on resize/mobile rotation
+let lastUnknownOverlayParams = null;
 
 function initCharts() {
   const labelColor = '#37474f';
@@ -327,11 +329,16 @@ function positionUnknownOverlay(A_meas, c_est, c_unknown, m, b) {
   // Align overlay to the chartArea (plot area), not the whole canvas
   const area = calibrationChart.chartArea;
   if (!area) return;
-  const cw = Math.max(1, Math.round(area.right - area.left));
-  const ch = Math.max(1, Math.round(area.bottom - area.top));
+  // Convert canvas-space pixels to CSS pixels using device pixel ratio scaling
+  const rect = canvas.getBoundingClientRect();
+  const scale = canvas.width ? (rect.width / canvas.width) : 1; // ~1/dpr on HiDPI; 1 on standard
+  const leftCSS = (area.left * scale);
+  const topCSS = (area.top * scale);
+  const cw = Math.max(1, Math.round((area.right - area.left) * scale));
+  const ch = Math.max(1, Math.round((area.bottom - area.top) * scale));
   unknownOverlay.style.inset = 'auto';
-  unknownOverlay.style.left = (canvas.offsetLeft + area.left) + 'px';
-  unknownOverlay.style.top = (canvas.offsetTop + area.top) + 'px';
+  unknownOverlay.style.left = (canvas.offsetLeft + leftCSS) + 'px';
+  unknownOverlay.style.top = (canvas.offsetTop + topCSS) + 'px';
   unknownOverlay.style.width = cw + 'px';
   unknownOverlay.style.height = ch + 'px';
   svg.setAttribute('viewBox', `0 0 ${cw} ${ch}`);
@@ -346,12 +353,12 @@ function positionUnknownOverlay(A_meas, c_est, c_unknown, m, b) {
   const cEstClamped = clamp(c_est, xMin, xMax);
 
   // Convert values to pixel coordinates (relative to canvas top-left)
-  const xData = xScale.getPixelForValue(c_unknown) - area.left;
-  const yA = yScale.getPixelForValue(A_meas) - area.top;
-  const xFit = xScale.getPixelForValue(cEstClamped) - area.left;
+  const xData = (xScale.getPixelForValue(c_unknown) - area.left) * scale;
+  const yA = (yScale.getPixelForValue(A_meas) - area.top) * scale;
+  const xFit = (xScale.getPixelForValue(cEstClamped) - area.left) * scale;
   // Use the line-of-best-fit height at x = ĉ to anchor the elbow precisely on the line
-  const yFitAtCEst = yScale.getPixelForValue(m * cEstClamped + b) - area.top;
-  const yAxis0 = yScale.getPixelForValue(0) - area.top;
+  const yFitAtCEst = (yScale.getPixelForValue(m * cEstClamped + b) - area.top) * scale;
+  const yAxis0 = (yScale.getPixelForValue(0) - area.top) * scale;
 
   // Update arrow lines
   arrowH.setAttribute('x1', String(xData));
@@ -393,6 +400,7 @@ function isOverlayVisible() {
 
 function showUnknownOverlay(A_meas, c_est, c_unknown, m, b) {
   positionUnknownOverlay(A_meas, c_est, c_unknown, m, b);
+  lastUnknownOverlayParams = { A_meas, c_est, c_unknown, m, b };
   unknownOverlay.classList.remove('is-hidden', 'fading');
   // restart animations
   unknownOverlay.classList.remove('unknown-animate');
@@ -405,6 +413,7 @@ function hideUnknownOverlay(immediate = false, after) {
   if (immediate) {
     unknownOverlay.classList.add('is-hidden');
     unknownOverlay.classList.remove('unknown-animate', 'fading');
+    lastUnknownOverlayParams = null;
     if (after) after();
     return;
   }
@@ -413,6 +422,7 @@ function hideUnknownOverlay(immediate = false, after) {
     unknownOverlay.classList.remove('fading', 'unknown-animate');
     unknownOverlay.classList.add('is-hidden');
     unknownOverlay.removeEventListener('animationend', onEnd);
+    lastUnknownOverlayParams = null;
     if (after) after();
   };
   unknownOverlay.addEventListener('animationend', onEnd);
@@ -540,6 +550,14 @@ function attachEvents() {
   actionButtons.forEach(btn => btn.addEventListener('click', () => {
     if (isOverlayVisible()) hideUnknownOverlay(false);
   }));
+
+  // Reposition overlay on window resize / orientation change for mobile responsiveness
+  window.addEventListener('resize', () => {
+    if (isOverlayVisible() && lastUnknownOverlayParams) {
+      const { A_meas, c_est, c_unknown, m, b } = lastUnknownOverlayParams;
+      positionUnknownOverlay(A_meas, c_est, c_unknown, m, b);
+    }
+  });
 
   downloadData.addEventListener('click', () => {
     const rows = [['concentration_mM','absorbance_A'], ...calibrationData.map(d => [d.c_mM, d.A])];
@@ -713,5 +731,16 @@ function stopAutoCalibration(restoreC = null) {
 window.addEventListener('DOMContentLoaded', () => {
   initCharts();
   attachEvents();
+  // Observe canvas size changes to keep overlay aligned on responsive layouts
+  const calibCanvas = document.getElementById('calibrationChart');
+  if (window.ResizeObserver && calibCanvas) {
+    const ro = new ResizeObserver(() => {
+      if (isOverlayVisible() && lastUnknownOverlayParams) {
+        const { A_meas, c_est, c_unknown, m, b } = lastUnknownOverlayParams;
+        positionUnknownOverlay(A_meas, c_est, c_unknown, m, b);
+      }
+    });
+    ro.observe(calibCanvas);
+  }
   updateAll();
 });
