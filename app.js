@@ -324,12 +324,14 @@ function positionUnknownOverlay(A_meas, c_est, c_unknown, m, b) {
   const cLbl = unknownOverlay.querySelector('#unknownCLabel');
   if (!canvas || !svg || !arrowH || !arrowV || !aLbl || !cLbl) return;
 
-  // Align overlay to exactly cover the canvas area in CSS pixels
-  const cw = canvas.clientWidth;
-  const ch = canvas.clientHeight;
+  // Align overlay to the chartArea (plot area), not the whole canvas
+  const area = calibrationChart.chartArea;
+  if (!area) return;
+  const cw = Math.max(1, Math.round(area.right - area.left));
+  const ch = Math.max(1, Math.round(area.bottom - area.top));
   unknownOverlay.style.inset = 'auto';
-  unknownOverlay.style.left = canvas.offsetLeft + 'px';
-  unknownOverlay.style.top = canvas.offsetTop + 'px';
+  unknownOverlay.style.left = (canvas.offsetLeft + area.left) + 'px';
+  unknownOverlay.style.top = (canvas.offsetTop + area.top) + 'px';
   unknownOverlay.style.width = cw + 'px';
   unknownOverlay.style.height = ch + 'px';
   svg.setAttribute('viewBox', `0 0 ${cw} ${ch}`);
@@ -344,12 +346,12 @@ function positionUnknownOverlay(A_meas, c_est, c_unknown, m, b) {
   const cEstClamped = clamp(c_est, xMin, xMax);
 
   // Convert values to pixel coordinates (relative to canvas top-left)
-  const xData = xScale.getPixelForValue(c_unknown);
-  const yA = yScale.getPixelForValue(A_meas);
-  const xFit = xScale.getPixelForValue(cEstClamped);
+  const xData = xScale.getPixelForValue(c_unknown) - area.left;
+  const yA = yScale.getPixelForValue(A_meas) - area.top;
+  const xFit = xScale.getPixelForValue(cEstClamped) - area.left;
   // Use the line-of-best-fit height at x = ĉ to anchor the elbow precisely on the line
-  const yFitAtCEst = yScale.getPixelForValue(m * cEstClamped + b);
-  const yAxis0 = yScale.getPixelForValue(0);
+  const yFitAtCEst = yScale.getPixelForValue(m * cEstClamped + b) - area.top;
+  const yAxis0 = yScale.getPixelForValue(0) - area.top;
 
   // Update arrow lines
   arrowH.setAttribute('x1', String(xData));
