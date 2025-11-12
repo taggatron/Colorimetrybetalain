@@ -313,6 +313,109 @@ function randn() { // Box-Muller
   return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 }
 
+// Precisely position the unknown overlay arrows and labels to match chart pixels
+function positionUnknownOverlay(A_meas, c_est, c_unknown, m, b) {
+  if (!unknownOverlay || !calibrationChart) return;
+  const canvas = document.getElementById('calibrationChart');
+  const svg = unknownOverlay.querySelector('svg');
+  const arrowH = unknownOverlay.querySelector('#arrowH');
+  const arrowV = unknownOverlay.querySelector('#arrowV');
+  const aLbl = unknownOverlay.querySelector('#unknownALabel');
+  const cLbl = unknownOverlay.querySelector('#unknownCLabel');
+  if (!canvas || !svg || !arrowH || !arrowV || !aLbl || !cLbl) return;
+
+  // Align overlay to exactly cover the canvas area in CSS pixels
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  unknownOverlay.style.inset = 'auto';
+  unknownOverlay.style.left = canvas.offsetLeft + 'px';
+  unknownOverlay.style.top = canvas.offsetTop + 'px';
+  unknownOverlay.style.width = cw + 'px';
+  unknownOverlay.style.height = ch + 'px';
+  svg.setAttribute('viewBox', `0 0 ${cw} ${ch}`);
+
+  const xScale = calibrationChart.scales.x;
+  const yScale = calibrationChart.scales.y;
+  if (!xScale || !yScale) return;
+
+  // Clamp estimate within the visible x-range
+  const xMin = xScale.min ?? 0;
+  const xMax = xScale.max ?? parseFloat(concentration.max || '1');
+  const cEstClamped = clamp(c_est, xMin, xMax);
+
+  // Convert values to pixel coordinates (relative to canvas top-left)
+  const xData = xScale.getPixelForValue(c_unknown);
+  const yA = yScale.getPixelForValue(A_meas);
+  const xFit = xScale.getPixelForValue(cEstClamped);
+  // Use the line-of-best-fit height at x = ĉ to anchor the elbow precisely on the line
+  const yFitAtCEst = yScale.getPixelForValue(m * cEstClamped + b);
+  const yAxis0 = yScale.getPixelForValue(0);
+
+  // Update arrow lines
+  arrowH.setAttribute('x1', String(xData));
+  arrowH.setAttribute('y1', String(yFitAtCEst));
+  arrowH.setAttribute('x2', String(xFit));
+  arrowH.setAttribute('y2', String(yFitAtCEst));
+
+  arrowV.setAttribute('x1', String(xFit));
+  arrowV.setAttribute('y1', String(yFitAtCEst));
+  arrowV.setAttribute('x2', String(xFit));
+  arrowV.setAttribute('y2', String(yAxis0));
+
+  // Set up stroke-draw: dash equals line length, start fully offset
+  const hLen = Math.hypot(xFit - xData, 0);
+  const vLen = Math.hypot(0, yAxis0 - yFitAtCEst);
+  arrowH.style.strokeDasharray = String(hLen);
+  arrowH.style.strokeDashoffset = String(hLen);
+  arrowV.style.strokeDasharray = String(vLen);
+  arrowV.style.strokeDashoffset = String(vLen);
+
+  // Place labels near arrows with simple clamping to stay inside canvas
+  const aText = `A* = ${fmt(A_meas, 3)}`;
+  const cText = `ĉ = ${fmt(c_est, 3)} mM`;
+  const aX = clamp(Math.min(xData, xFit) - 6, 2, cw - 2);
+  const aY = clamp(yFitAtCEst - 6, 10, ch - 10);
+  const cX = clamp(xFit + 6, 4, cw - 24);
+  const cY = clamp(yAxis0 + 14, 12, ch - 4);
+  aLbl.textContent = aText;
+  aLbl.setAttribute('x', String(aX));
+  aLbl.setAttribute('y', String(aY));
+  cLbl.textContent = cText;
+  cLbl.setAttribute('x', String(cX));
+  cLbl.setAttribute('y', String(cY));
+}
+
+function isOverlayVisible() {
+  return unknownOverlay && !unknownOverlay.classList.contains('is-hidden');
+}
+
+function showUnknownOverlay(A_meas, c_est, c_unknown, m, b) {
+  positionUnknownOverlay(A_meas, c_est, c_unknown, m, b);
+  unknownOverlay.classList.remove('is-hidden', 'fading');
+  // restart animations
+  unknownOverlay.classList.remove('unknown-animate');
+  void unknownOverlay.offsetWidth;
+  unknownOverlay.classList.add('unknown-animate');
+}
+
+function hideUnknownOverlay(immediate = false, after) {
+  if (!isOverlayVisible()) { if (after) after(); return; }
+  if (immediate) {
+    unknownOverlay.classList.add('is-hidden');
+    unknownOverlay.classList.remove('unknown-animate', 'fading');
+    if (after) after();
+    return;
+  }
+  unknownOverlay.classList.add('fading');
+  const onEnd = () => {
+    unknownOverlay.classList.remove('fading', 'unknown-animate');
+    unknownOverlay.classList.add('is-hidden');
+    unknownOverlay.removeEventListener('animationend', onEnd);
+    if (after) after();
+  };
+  unknownOverlay.addEventListener('animationend', onEnd);
+}
+
 // Brief flash of LED and detector on measurement
 function flashMeasurementCue() {
   if (led) {
@@ -336,6 +439,8 @@ function attachEvents() {
   });
 
   resetAll.addEventListener('click', () => {
+    // Dismiss any visible unknown overlay on reset
+    if (isOverlayVisible()) hideUnknownOverlay(false);
     wavelength.value = 538;
     concentration.value = 0.5;
   // path length fixed at 1 cm
@@ -377,6 +482,10 @@ function attachEvents() {
   // Unknown sample: generate a random concentration, add its A at current λ,
   // estimate ĉ from the current fit, and animate overlay arrows.
   unknownBtn.addEventListener('click', () => {
+    // If an overlay is already visible, fade it out first before showing a new one
+    if (isOverlayVisible()) {
+      hideUnknownOverlay(true);
+    }
     // If insufficient points, quickly seed two points using current λ
     if (calibrationData.length < 2) {
       const lam = parseFloat(wavelength.value);
@@ -408,23 +517,27 @@ function attachEvents() {
     const m = fit.m, b = fit.b;
     const c_est = m !== 0 ? (A_meas - b) / m : 0;
 
-    // Animate overlay arrows over the chart area
+    // Show overlay arrows over the chart area and keep visible until next action
     if (unknownOverlay) {
-      unknownOverlay.classList.remove('is-hidden');
-      unknownOverlay.classList.add('unknown-animate');
-      // Remove animation class after it finishes so it can be replayed next time
-      setTimeout(() => unknownOverlay.classList.remove('unknown-animate'), 2500);
-      // Hide overlay after a short while
-      setTimeout(() => unknownOverlay.classList.add('is-hidden'), 3000);
+      showUnknownOverlay(A_meas, c_est, cUnknown, m, b);
     }
 
-    // Remove temp point after a bit so it doesn’t affect future fits
-    setTimeout(() => {
+    // Keep temp point for stability until user performs a new action; then remove on hide
+    const scheduleRemoval = () => {
       const idx = calibrationData.indexOf(tempPoint);
       if (idx >= 0) calibrationData.splice(idx, 1);
       updateCalibrationPlot();
-    }, 1200);
+    };
+    // Attach one-time remover after overlay fades
+    const onEndRemove = () => { scheduleRemoval(); unknownOverlay.removeEventListener('animationend', onEndRemove); };
+    unknownOverlay.addEventListener('animationend', onEndRemove);
   });
+
+  // Dismiss overlay on next action button press (measure/auto/clear/reset)
+  const actionButtons = [measureBtn, autoCalibrateBtn, clearCalibration, resetAll];
+  actionButtons.forEach(btn => btn.addEventListener('click', () => {
+    if (isOverlayVisible()) hideUnknownOverlay(false);
+  }));
 
   downloadData.addEventListener('click', () => {
     const rows = [['concentration_mM','absorbance_A'], ...calibrationData.map(d => [d.c_mM, d.A])];
@@ -539,6 +652,8 @@ function stopBleaching() {
 // --- Auto calibration sequence ---
 function startAutoCalibration() {
   if (autoRunning) return;
+  // Dismiss overlay when auto calibration starts
+  if (isOverlayVisible()) hideUnknownOverlay(false);
   autoRunning = true;
   autoCalibrateBtn.textContent = '⏹ Stop auto';
   autoCalibrateBtn.setAttribute('aria-pressed', 'true');
